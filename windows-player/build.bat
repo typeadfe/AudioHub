@@ -29,7 +29,7 @@ echo ------------------------------------------------------------
 rem Compile the resource script: application manifest + version info.
 rem Without this the exe has no identity at all, which looks exactly like
 rem an unsigned malware dropper to antivirus heuristics.
-"%MINGW%\windres.exe" -I "%SRCDIR%" -i "%SRCDIR%\resource.rc" -o "%OUTDIR%\resource.o"
+"%MINGW%\windres.exe" --codepage=65001 -I "%SRCDIR%" -i "%SRCDIR%\resource.rc" -o "%OUTDIR%\resource.o"
 if errorlevel 1 (
     echo.
     echo [FAILED] resource compilation
