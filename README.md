@@ -20,7 +20,7 @@
 
 ## 使用方法
 
-1. 让设备接入同一局域网，在作为播放设备的手机或电脑上点击“开始接收”。
+1. 让设备接入同一WiFi，在作为播放设备的手机或电脑上点击“开始接收”。
 2. 在发送设备上扫描并连接接收端，然后点击“开始发送”。
 3. 需要传文字时，在任一已连接设备上点击“发送剪贴板”。
 
@@ -28,7 +28,7 @@ Android 需要 10 或更高版本。首次发送声音时，系统会请求录�
 
 ## 下载
 
-[Releases](https://github.com/typeadfe/AudioHub/releases)v1.0 文件：`AudioHub-v1.0-debug.apk`（Android）和 `AudioHub-Windows-v1.0.exe`（Windows）。当前 Android 文件使用开发签名，适合测试；正式发布需使用专用发布签名重新打包。Windows 文件尚未签名，系统可能提示发布者未知。
+[Releases](https://github.com/typeadfe/AudioHub/releases) v1.0 文件：`AudioHub-v1.0-debug.apk`（Android）和 `AudioHub-Windows-v1.0.exe`（Windows）。当前 Android 文件使用开发签名。Windows 文件尚未签名，系统可能提示发布者未知。
 
 ## 项目结构
 
