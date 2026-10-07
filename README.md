@@ -38,4 +38,3 @@ v1.0 文件：`AudioHub-v1.0-debug.apk`（Android）和 `AudioHub-Windows-v1.0.e
 
 构建脚本位于 `tools/` 和 `windows-player/build.bat`。当前脚本包含开发机路径，在其他电脑构建时需按当地环境配置 JDK、Android SDK、Gradle 和 MinGW。项目所有者发布源码前还需确定并加入许可证文件。
 
-**关键词：**多设备音频、手机声音传到电脑、局域网音频传输、音频混音、手机内录、剪贴板互传；multi-device audio, LAN audio streaming, audio mixer, Android audio capture, Windows loopback, clipboard sharing.
