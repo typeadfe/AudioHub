@@ -102,6 +102,8 @@ struct App {
     bool dragMaster  = false;
     bool hoverClose  = false;
     bool hoverMin    = false;
+    bool hoverLanguage = false;
+    bool english = false;
     bool tracking    = false;
     bool trayAdded   = false;
     bool trayHintShown = false;
@@ -113,6 +115,39 @@ struct App {
 
 static App g;
 static UINT taskbarCreated = 0;
+
+bool loadEnglish() {
+    HKEY key = nullptr;
+    DWORD value = 0, type = REG_DWORD, size = sizeof(value);
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\AudioHub", 0, KEY_QUERY_VALUE, &key)
+            == ERROR_SUCCESS) {
+        LONG result = RegQueryValueExW(key, L"Language", nullptr, &type,
+                                        reinterpret_cast<BYTE*>(&value), &size);
+        RegCloseKey(key);
+        if (result == ERROR_SUCCESS && type == REG_DWORD && size == sizeof(value))
+            return value == 1;
+    }
+    return PRIMARYLANGID(GetUserDefaultUILanguage()) != LANG_CHINESE;
+}
+
+void saveEnglish(bool english) {
+    HKEY key = nullptr;
+    if (RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\AudioHub", 0, nullptr, 0,
+                        KEY_SET_VALUE, nullptr, &key, nullptr) != ERROR_SUCCESS) return;
+    DWORD value = english ? 1 : 0;
+    RegSetValueExW(key, L"Language", 0, REG_DWORD,
+                   reinterpret_cast<const BYTE*>(&value), sizeof(value));
+    RegCloseKey(key);
+}
+
+const wchar_t* T(const wchar_t* chinese, const wchar_t* english) {
+    return g.english ? english : chinese;
+}
+
+std::string T8(const char* chinese, const char* english) {
+    return g.english ? english : chinese;
+}
+
 constexpr UINT TRAY_MESSAGE = WM_APP + 1;
 constexpr UINT TRAY_MINIMIZE = WM_APP + 2;
 constexpr UINT TRAY_ID = 1;
@@ -171,7 +206,7 @@ void minimizeToTray(App& a) {
     KillTimer(a.hwnd, 1);
     SetTimer(a.hwnd, 1, 1000, nullptr);
     if (!a.trayHintShown) {
-        trayNotice(a, L"已最小化到托盘，双击图标可打开窗口");
+        trayNotice(a, T(L"已最小化到托盘，双击图标可打开窗口", L"Minimized to the tray. Double-click to open."));
         a.trayHintShown = true;
     }
 }
@@ -187,9 +222,9 @@ void restoreFromTray(App& a) {
 void showTrayMenu(App& a) {
     HMENU menu = CreatePopupMenu();
     if (!menu) return;
-    AppendMenuW(menu, MF_STRING, TRAY_OPEN, L"打开 AudioHub");
+    AppendMenuW(menu, MF_STRING, TRAY_OPEN, T(L"打开 AudioHub", L"Open AudioHub"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, TRAY_EXIT, L"退出 AudioHub");
+    AppendMenuW(menu, MF_STRING, TRAY_EXIT, T(L"退出 AudioHub", L"Exit AudioHub"));
     POINT pt;
     GetCursorPos(&pt);
     SetForegroundWindow(a.hwnd);
@@ -275,6 +310,13 @@ RectF masterRect(int W) {
 }
 
 /** 标题栏按钮矩形（最小化 / 关闭），按 Win11 的 46x32 规格 */
+RectF languageRect(int W) {
+    const int bw = ui::scale(46);
+    const int bh = ui::scale(32);
+    return RectF((REAL)(W - bw * 3), (REAL)((ui::scale(TITLE_H) - bh) / 2),
+                 (REAL)bw, (REAL)bh);
+}
+
 RectF titleBtn(int W, bool close) {
     const int bw = ui::scale(46);
     const int bh = ui::scale(32);
@@ -296,6 +338,13 @@ void paintTitleBar(App& a, Graphics& gr, int W) {
     ui::text(gr, L"AudioHub",
              RectF((REAL)ui::scale(38), 0, (REAL)(W / 2), (REAL)th),
              ui::fontTitle(), ui::color::text(), 0);
+
+    // Language toggle is always available, including on Chinese Windows.
+    RectF lang = languageRect(W);
+    if (a.hoverLanguage)
+        ui::roundedRect(gr, lang, (REAL)ui::scale(6), ui::color::layerHover(), nullptr);
+    ui::text(gr, a.english ? L"中" : L"EN", lang, ui::fontCaption(),
+             ui::color::textSecond(), 1);
 
     // 右侧按钮（自绘，避免非客户区与自绘风格不一致）
     struct Btn { RectF r; bool close; bool hover; };
@@ -331,7 +380,7 @@ void paintMode(App& a, Graphics& gr, int W) {
         ui::roundedRect(gr, r, (REAL)ui::scale(9),
                         selected ? ui::color::accentDim() : ui::color::layer(),
                         &stroke, 1.0f);
-        ui::text(gr, sender ? L"发送" : L"接收", r, ui::fontBodyStrong(),
+        ui::text(gr, sender ? T(L"发送", L"Send") : T(L"接收", L"Receive"), r, ui::fontBodyStrong(),
                  selected ? ui::color::text() : ui::color::textSecond(), 1);
     }
 }
@@ -348,7 +397,7 @@ void paintMaster(App& a, Graphics& gr, int W) {
     int connected = 0;
     for (auto& s : st) if (s.connected) connected++;
 
-    ui::text(gr, L"主音量",
+    ui::text(gr, T(L"主音量", L"Master volume"),
              RectF((REAL)pad, (REAL)(y0 + ui::scale(8)), (REAL)ui::scale(120), (REAL)ui::scale(24)),
              ui::fontBodyStrong(), ui::color::text(), 0);
 
@@ -362,13 +411,15 @@ void paintMaster(App& a, Graphics& gr, int W) {
     ui::slider(gr, masterRect(W), a.player->masterGain(), a.hoverMaster, a.dragMaster);
 
     // 输出设备与连接数
-    std::string sub = "输出: " + a.opt.outputDevice;
+    std::string sub = T8("输出: ", "Output: ")
+            + (a.opt.outputDevice == "系统默认播放设备"
+                    ? T8("系统默认播放设备", "System default output") : a.opt.outputDevice);
     ui::text(gr, ui::toWide(sub),
              RectF((REAL)pad, (REAL)(y0 + ui::scale(70)), (REAL)(W - pad * 2 - ui::scale(110)),
                    (REAL)ui::scale(18)),
              ui::fontCaption(), ui::color::textTertiary(), 0);
 
-    swprintf(buf, 64, L"已连接 %d 路", connected);
+    swprintf(buf, 64, T(L"已连接 %d 路", L"%d connected"), connected);
     ui::text(gr, buf,
              RectF((REAL)(W - pad - ui::scale(110)), (REAL)(y0 + ui::scale(70)),
                    (REAL)ui::scale(110), (REAL)ui::scale(18)),
@@ -432,23 +483,23 @@ void paintReceiverService(App& a, Graphics& gr, int W) {
     ui::roundedRect(gr, card, (REAL)ui::scale(10), ui::color::layerAlt(), &stroke, 1.0f);
     int state = a.opt.receiverState ? a.opt.receiverState() : 0;
     bool running = state == 2;
-    ui::text(gr, L"接收手机声音",
+    ui::text(gr, T(L"接收手机声音", L"Receive device audio"),
              RectF(card.X + ui::scale(14), card.Y + ui::scale(8),
                    card.Width - ui::scale(28), (REAL)ui::scale(25)),
              ui::fontBodyStrong(), ui::color::text(), 0);
-    const wchar_t* sub = state == 1 ? L"正在启动接收服务" : state == 3 ? L"正在停止接收服务"
-                       : running ? L"等待设备连接；需要时点击扫描" : L"开始接收后可手动扫描设备";
+    const wchar_t* sub = state == 1 ? T(L"正在启动接收服务", L"Starting receiver") : state == 3 ? T(L"正在停止接收服务", L"Stopping receiver")
+                       : running ? T(L"等待设备连接；需要时点击扫描", L"Waiting for devices. Scan when needed.") : T(L"开始接收后可手动扫描设备", L"Start receiving, then scan for devices.");
     ui::text(gr, sub,
              RectF(card.X + ui::scale(14), card.Y + ui::scale(37),
                    card.Width - ui::scale(28), (REAL)ui::scale(22)),
              ui::fontCaption(), running ? ui::color::ok() : ui::color::textTertiary(), 0);
-    ui::outlineButton(gr, receiverServiceRect(W), state == 1 ? L"启动中" : state == 3 ? L"停止中"
-                      : running ? L"停止接收" : L"开始接收",
+    ui::outlineButton(gr, receiverServiceRect(W), state == 1 ? T(L"启动中", L"Starting") : state == 3 ? T(L"停止中", L"Stopping")
+                      : running ? T(L"停止接收", L"Stop receiving") : T(L"开始接收", L"Start receiving"),
                       ui::fontCaption(), a.hoverReceiverService, running);
     ui::outlineButton(gr, receiverScanRect(W),
-                      a.opt.receiverScanning && a.opt.receiverScanning() ? L"扫描中" : L"扫描设备",
+                      a.opt.receiverScanning && a.opt.receiverScanning() ? T(L"扫描中", L"Scanning") : T(L"扫描设备", L"Scan devices"),
                       ui::fontCaption(), a.hoverReceiverScan, false);
-    ui::outlineButton(gr, receiverClipboardRect(W), L"发送剪贴板",
+    ui::outlineButton(gr, receiverClipboardRect(W), T(L"发送剪贴板", L"Send clipboard"),
                       ui::fontCaption(), a.hoverReceiverClipboard, false);
 }
 
@@ -458,7 +509,7 @@ void paintSender(App& a, Graphics& gr, int W) {
     RectF card((REAL)pad, (REAL)y, (REAL)(W - pad * 2), (REAL)ui::scale(220));
     Color stroke = ui::color::stroke();
     ui::roundedRect(gr, card, (REAL)ui::scale(10), ui::color::layerAlt(), &stroke, 1.0f);
-    ui::text(gr, L"电脑声音与剪贴板",
+    ui::text(gr, T(L"电脑声音与剪贴板", L"Computer audio and clipboard"),
              RectF(card.X + ui::scale(14), card.Y + ui::scale(10),
                    card.Width - ui::scale(28), (REAL)ui::scale(26)),
              ui::fontBodyStrong(), ui::color::text(), 0);
@@ -468,13 +519,13 @@ void paintSender(App& a, Graphics& gr, int W) {
     Color stateColor = ui::color::textSecond();
     if (serviceState != 2) {
         std::string error = a.opt.senderError ? a.opt.senderError() : "";
-        state = serviceState == 1 ? L"正在启动发送服务" : serviceState == 3 ? L"正在停止发送服务"
-              : error.empty() ? L"尚未开始发送" : L"启动失败：" + ui::toWide(error);
+        state = serviceState == 1 ? T(L"正在启动发送服务", L"Starting sender") : serviceState == 3 ? T(L"正在停止发送服务", L"Stopping sender")
+              : error.empty() ? T(L"尚未开始发送", L"Sender is stopped") : T(L"启动失败：", L"Start failed: ") + ui::toWide(error);
         stateColor = error.empty() ? ui::color::textSecond() : ui::color::danger();
     } else if (peers == 0) {
-        state = a.player->isAudioSenderRunning() ? L"声音已开启，等待手机接收端连接" : L"等待手机接收端连接";
+        state = a.player->isAudioSenderRunning() ? T(L"声音已开启，等待手机接收端连接", L"Audio on; waiting for a phone receiver") : T(L"等待手机接收端连接", L"Waiting for a phone receiver");
     } else {
-        state = L"已连接 " + std::to_wstring(peers) + L" 台接收设备";
+        state = T(L"已连接 ", L"Connected to ") + std::to_wstring(peers) + T(L" 台接收设备", L" receiver devices");
         stateColor = ui::color::ok();
     }
     ui::circle(gr, card.X + ui::scale(20), card.Y + ui::scale(52),
@@ -484,29 +535,29 @@ void paintSender(App& a, Graphics& gr, int W) {
                    card.Width - ui::scale(46), (REAL)ui::scale(27)),
              ui::fontBody(), stateColor, 0);
     std::string addr = a.opt.localIp + ":" + std::to_string(ahub::DISCOVERY_PORT);
-    ui::text(gr, ui::toWide("电脑地址 " + addr),
+    ui::text(gr, ui::toWide(T8("电脑地址 ", "PC address ") + addr),
              RectF(card.X + ui::scale(14), card.Y + ui::scale(70),
                    card.Width - ui::scale(28), (REAL)ui::scale(20)),
              ui::fontCaption(), ui::color::textSecond(), 0);
     std::vector<std::string> addrs = a.player->clipboardPeerAddresses();
     std::wstring detail = addrs.empty()
-        ? L"在手机「接收」页点开始，再点击扫描设备"
-        : L"接收设备 " + ui::toWide(addrs.front()) + (addrs.size() > 1 ? L" 等" : L"");
+        ? T(L"在手机「接收」页点开始，再点击扫描设备", L"On the phone, start receiving and scan.")
+        : T(L"接收设备 ", L"Receiver ") + ui::toWide(addrs.front()) + (addrs.size() > 1 ? T(L" 等", L" and others") : L"");
     ui::text(gr, detail,
              RectF(card.X + ui::scale(14), card.Y + ui::scale(96),
                    card.Width - ui::scale(28), (REAL)ui::scale(20)),
              ui::fontCaption(), ui::color::textTertiary(), 0);
     ui::outlineButton(gr, senderServiceRect(W),
-                      serviceState == 1 ? L"启动中" : serviceState == 3 ? L"停止中"
-                        : serviceState == 2 ? L"停止发送" : L"开始发送",
+                      serviceState == 1 ? T(L"启动中", L"Starting") : serviceState == 3 ? T(L"停止中", L"Stopping")
+                        : serviceState == 2 ? T(L"停止发送", L"Stop sending") : T(L"开始发送", L"Start sending"),
                       ui::fontCaption(), a.hoverSenderService,
                       serviceState == 2);
     ui::outlineButton(gr, senderScanRect(W),
-                      a.opt.senderScanning && a.opt.senderScanning() ? L"扫描中" : L"扫描设备",
+                      a.opt.senderScanning && a.opt.senderScanning() ? T(L"扫描中", L"Scanning") : T(L"扫描设备", L"Scan devices"),
                       ui::fontCaption(), a.hoverSenderScan, false);
-    ui::outlineButton(gr, clipboardSendRect(W), L"发送剪贴板",
+    ui::outlineButton(gr, clipboardSendRect(W), T(L"发送剪贴板", L"Send clipboard"),
                       ui::fontCaption(), a.hoverClipboardSend, false);
-    ui::text(gr, L"已连接的接收设备",
+    ui::text(gr, T(L"已连接的接收设备", L"Connected receivers"),
              RectF((REAL)pad, (REAL)ui::scale(TITLE_H + MODE_H + 230),
                    (REAL)(W - pad * 2), (REAL)ui::scale(20)),
              ui::fontBodyStrong(), ui::color::text(), 0);
@@ -515,7 +566,7 @@ void paintSender(App& a, Graphics& gr, int W) {
 void paintSenderPeers(App& a, Graphics& gr, int W, int H) {
     std::vector<ahub::ClipboardServer::PeerStat> peers = a.player->senderPeers();
     if (peers.empty()) {
-        ui::text(gr, L"暂无接收设备。请在手机「接收」页点击开始。",
+        ui::text(gr, T(L"暂无接收设备。请在手机「接收」页点击开始。", L"No receivers yet. Start receiving on a phone."),
                  RectF(0, (REAL)ui::scale(TITLE_H + MODE_H + 278),
                        (REAL)W, (REAL)ui::scale(30)),
                  ui::fontCaption(), ui::color::textTertiary(), 1);
@@ -539,8 +590,8 @@ void paintSenderPeers(App& a, Graphics& gr, int W, int H) {
                        hit.card.Width - ui::scale(120), (REAL)ui::scale(24)),
                  ui::fontBodyStrong(), ui::color::text(), 0);
         std::string subtitle = it->address + " · "
-                + (it->latencyMs > 0 ? "延迟约 " + std::to_string(it->latencyMs) + " ms"
-                                      : "延迟测量中");
+                + (it->latencyMs > 0 ? T8("延迟约 ", "Latency about ") + std::to_string(it->latencyMs) + " ms"
+                                      : T8("延迟测量中", "Measuring latency"));
         ui::text(gr, ui::toWide(subtitle),
                  RectF(hit.card.X + ui::scale(32), hit.card.Y + ui::scale(38),
                        hit.card.Width - ui::scale(130), (REAL)ui::scale(22)),
@@ -552,10 +603,10 @@ void paintSenderPeers(App& a, Graphics& gr, int W, int H) {
 void paintCards(App& a, Graphics& gr, int W, int H) {
     std::vector<ahub::SourceStat> st = a.player->stats();
     if (st.empty()) {
-        ui::text(gr, L"还没有音源接入",
+        ui::text(gr, T(L"还没有音源接入", L"No audio sources yet"),
                  RectF(0, (REAL)(ui::scale(TITLE_H + MODE_H + SERVICE_H + MASTER_H)), (REAL)W, (REAL)ui::scale(60)),
                  ui::fontBodyStrong(), ui::color::textSecond(), 1);
-        ui::text(gr, L"在手机上打开 AudioHub，切到「发送」并点开始",
+        ui::text(gr, T(L"在手机上打开 AudioHub，切到「发送」并点开始", L"Open AudioHub on a phone and start sending."),
                  RectF(0, (REAL)(ui::scale(TITLE_H + MODE_H + SERVICE_H + MASTER_H + 34)), (REAL)W, (REAL)ui::scale(24)),
                  ui::fontCaption(), ui::color::textTertiary(), 1);
         return;
@@ -599,12 +650,12 @@ void paintCards(App& a, Graphics& gr, int W, int H) {
 
         // 右上角：延迟 / 状态
         wchar_t rbuf[96];
-        if (pending)        swprintf(rbuf, 96, L"等待允许");
-        else if (s.denied)  swprintf(rbuf, 96, L"已被拒绝");
-        else if (!s.connected) swprintf(rbuf, 96, L"未连接");
-        else if (!s.recentAudio) swprintf(rbuf, 96, L"已连接待发送");
-        else if (s.pendingMs > 0) swprintf(rbuf, 96, L"延迟 %d ms", s.pendingMs);
-        else                swprintf(rbuf, 96, L"接收中");
+        if (pending)        swprintf(rbuf, 96, T(L"等待允许", L"Awaiting approval"));
+        else if (s.denied)  swprintf(rbuf, 96, T(L"已被拒绝", L"Denied"));
+        else if (!s.connected) swprintf(rbuf, 96, T(L"未连接", L"Disconnected"));
+        else if (!s.recentAudio) swprintf(rbuf, 96, T(L"已连接待发送", L"Connected; waiting"));
+        else if (s.pendingMs > 0) swprintf(rbuf, 96, T(L"延迟 %d ms", L"Latency %d ms"), s.pendingMs);
+        else                swprintf(rbuf, 96, T(L"接收中", L"Receiving"));
         Color rc = pending ? ui::color::warn()
                  : bad ? ui::color::danger()
                  : (s.connected ? ui::color::ok() : ui::color::textSecond());
@@ -616,7 +667,9 @@ void paintCards(App& a, Graphics& gr, int W, int H) {
         // 副行：地址 · 传输/格式
         std::string sub = s.host;
 if (!s.name.empty() && s.level != ahub::BW_FULL) {
-            sub += std::string(" · ") + ahub::bwLabel(s.level) + " "
+            const char* bandwidth = s.level == ahub::BW_HIGH ? "High fidelity"
+                    : s.level == ahub::BW_MED ? "Standard" : "Data saving";
+            sub += std::string(" · ") + (a.english ? bandwidth : ahub::bwLabel(s.level)) + " "
                  + std::to_string(ahub::bwKbps(s.level)) + " kbps";
         }
         ui::text(gr, ui::toWide(sub),
@@ -639,7 +692,7 @@ if (!s.name.empty() && s.level != ahub::BW_FULL) {
                  ui::fontCaption(), ui::color::textSecond(), 0);
 
         // 静音按钮
-        ui::outlineButton(gr, hit.mute, s.muted ? L"已静音" : L"静音",
+        ui::outlineButton(gr, hit.mute, s.muted ? T(L"已静音", L"Muted") : T(L"静音", L"Mute"),
                           ui::fontCaption(), a.hoverMute == (int)i, s.muted);
     }
 }
@@ -651,8 +704,11 @@ void paintStatus(App& a, Graphics& gr, int W, int H) {
     Pen sep(ui::color::strokeSoft(), 1.0f);
     gr.DrawLine(&sep, (REAL)pad, (REAL)y, (REAL)(W - pad), (REAL)y);
 
-    std::string left = "局域网 " + a.opt.localIp + " · 端口 " + std::to_string(a.opt.port)
-                     + " · 接收设备 " + std::to_string(a.player->clipboardPeerCount());
+    std::string left = T8("局域网 ", "LAN ")
+            + (a.opt.localIp == "未知" ? T8("未知", "Unknown") : a.opt.localIp)
+            + T8(" · 端口 ", " · port ") + std::to_string(a.opt.port)
+            + T8(" · 接收设备 ", " · receivers ")
+            + std::to_string(a.player->clipboardPeerCount());
     ui::text(gr, ui::toWide(left),
              RectF((REAL)pad, (REAL)y, (REAL)(W - pad * 2), (REAL)ui::scale(STATUS_H)),
              ui::fontCaption(), ui::color::textTertiary(), 0);
@@ -739,6 +795,7 @@ void showToast(App& a, const std::wstring& message) {
 void updateHover(App& a, int x, int y, int W) {
     a.hoverClose = inRect(titleBtn(W, true), x, y);
     a.hoverMin   = inRect(titleBtn(W, false), x, y);
+    a.hoverLanguage = inRect(languageRect(W), x, y);
     a.hoverMaster = !a.senderMode && inRect(masterRect(W), x, y);
     a.hoverClipboardSend = a.senderMode && inRect(clipboardSendRect(W), x, y);
     a.hoverReceiverClipboard = !a.senderMode && inRect(receiverClipboardRect(W), x, y);
@@ -810,6 +867,12 @@ void onLButtonDown(App& a, int x, int y) {
         SendMessageW(a.hwnd, WM_SYSCOMMAND, SC_MINIMIZE, 0);
         return;
     }
+    if (inRect(languageRect(W), x, y)) {
+        a.english = !a.english;
+        saveEnglish(a.english);
+        InvalidateRect(a.hwnd, nullptr, FALSE);
+        return;
+    }
     if (inRect(modeRect(W, false), x, y) || inRect(modeRect(W, true), x, y)) {
         a.senderMode = inRect(modeRect(W, true), x, y);
         a.dragMaster = false;
@@ -824,15 +887,15 @@ void onLButtonDown(App& a, int x, int y) {
         std::string err;
         if (a.opt.toggleReceiver && a.opt.toggleReceiver(start, err)) {
             a.lastReceiverState = start ? 1 : 3;
-            showToast(a, start ? L"正在启动接收" : L"正在停止接收");
+            showToast(a, start ? T(L"正在启动接收", L"Starting receiver") : T(L"正在停止接收", L"Stopping receiver"));
         } else
-            showToast(a, L"接收启动失败：" + ui::toWide(err));
+            showToast(a, T(L"接收启动失败：", L"Receiver failed: ") + ui::toWide(err));
         return;
     }
     if (!a.senderMode && inRect(receiverScanRect(W), x, y)) {
         if (a.opt.requestReceiverScan && a.opt.requestReceiverScan())
-            showToast(a, L"正在扫描局域网设备，约 5 秒");
-        else showToast(a, L"请先开始接收，或等待当前扫描结束");
+            showToast(a, T(L"正在扫描局域网设备，约 5 秒", L"Scanning LAN devices for about 5 seconds"));
+        else showToast(a, T(L"请先开始接收，或等待当前扫描结束", L"Start receiving or wait for the scan to finish."));
         return;
     }
     if (a.senderMode && inRect(senderServiceRect(W), x, y)) {
@@ -842,22 +905,22 @@ void onLButtonDown(App& a, int x, int y) {
         std::string err;
         if (a.opt.toggleSender && a.opt.toggleSender(start, err)) {
             a.lastSenderState = start ? 1 : 3;
-            showToast(a, start ? L"正在启动发送" : L"正在停止发送");
+            showToast(a, start ? T(L"正在启动发送", L"Starting sender") : T(L"正在停止发送", L"Stopping sender"));
         } else
-            showToast(a, L"发送切换失败：" + ui::toWide(err));
+            showToast(a, T(L"发送切换失败：", L"Sender switch failed: ") + ui::toWide(err));
         return;
     }
     if (a.senderMode && inRect(senderScanRect(W), x, y)) {
         if (a.opt.requestSenderScan && a.opt.requestSenderScan())
-            showToast(a, L"正在扫描局域网设备，约 5 秒");
-        else showToast(a, L"请先开始发送，或等待当前扫描结束");
+            showToast(a, T(L"正在扫描局域网设备，约 5 秒", L"Scanning LAN devices for about 5 seconds"));
+        else showToast(a, T(L"请先开始发送，或等待当前扫描结束", L"Start sending or wait for the scan to finish."));
         return;
     }
     if ((a.senderMode && inRect(clipboardSendRect(W), x, y)) ||
             (!a.senderMode && inRect(receiverClipboardRect(W), x, y))) {
         int sent = a.player->sendClipboard();
-        showToast(a, sent > 0 ? L"剪贴板已发送给 " + std::to_wstring(sent) + L" 台设备"
-                              : L"尚无已连接设备");
+        showToast(a, sent > 0 ? T(L"剪贴板已发送给 ", L"Clipboard sent to ") + std::to_wstring(sent) + T(L" 台设备", L" devices")
+                              : T(L"尚无已连接设备", L"No connected devices"));
         return;
     }
     if (a.senderMode) {
@@ -868,7 +931,7 @@ void onLButtonDown(App& a, int x, int y) {
                 return p.address == hit.address;
             });
             if (it != peers.end() && a.player->setSenderPeerEnabled(hit.address, !it->audioEnabled))
-                showToast(a, it->audioEnabled ? L"已暂停向该设备发送声音" : L"已恢复向该设备发送声音");
+                showToast(a, it->audioEnabled ? T(L"已暂停向该设备发送声音", L"Audio to this device paused") : T(L"已恢复向该设备发送声音", L"Audio to this device resumed"));
             return;
         }
     }
@@ -947,6 +1010,7 @@ LRESULT hitTest(App& a, int sx, int sy) {
     if (y < ui::scale(TITLE_H)) {
         if (inRect(titleBtn(W, true), x, y))  return HTCLIENT;
         if (inRect(titleBtn(W, false), x, y)) return HTCLIENT;
+        if (inRect(languageRect(W), x, y)) return HTCLIENT;
         return HTCAPTION;
     }
     return HTCLIENT;
@@ -1003,15 +1067,15 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_TIMER:
         if (a.player && a.player->clipboardReceiveSeq() != a.lastClipboardSeq) {
             a.lastClipboardSeq = a.player->clipboardReceiveSeq();
-            showToast(a, L"已收到剪贴板内容，已复制到电脑剪贴板");
+            showToast(a, T(L"已收到剪贴板内容，已复制到电脑剪贴板", L"Clipboard received and copied"));
         }
         if (a.opt.receiverState) {
             int state = a.opt.receiverState();
             if (state != a.lastReceiverState) {
-                if (a.lastReceiverState == 1 && state == 2) showToast(a, L"已开始接收");
+                if (a.lastReceiverState == 1 && state == 2) showToast(a, T(L"已开始接收", L"Receiver started"));
                 else if (a.lastReceiverState == 1 && state == 0)
-                    showToast(a, L"接收启动失败：" + ui::toWide(a.opt.receiverError()));
-                else if (a.lastReceiverState == 3 && state == 0) showToast(a, L"已停止接收");
+                    showToast(a, T(L"接收启动失败：", L"Receiver failed: ") + ui::toWide(a.opt.receiverError()));
+                else if (a.lastReceiverState == 3 && state == 0) showToast(a, T(L"已停止接收", L"Receiver stopped"));
                 a.lastReceiverState = state;
             }
         }
@@ -1020,10 +1084,10 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             if (state != a.lastSenderState) {
                 if (a.lastSenderState == 1 && state == 2) {
                     std::string error = a.opt.senderError();
-                    showToast(a, error.empty() ? L"已开始发送，正在连接手机" : ui::toWide(error));
+                    showToast(a, error.empty() ? T(L"已开始发送，正在连接手机", L"Sender started; connecting to phones") : ui::toWide(error));
                 } else if (a.lastSenderState == 1 && state == 0)
-                    showToast(a, L"发送启动失败：" + ui::toWide(a.opt.senderError()));
-                else if (a.lastSenderState == 3 && state == 0) showToast(a, L"已停止发送");
+                    showToast(a, T(L"发送启动失败：", L"Sender failed: ") + ui::toWide(a.opt.senderError()));
+                else if (a.lastSenderState == 3 && state == 0) showToast(a, T(L"已停止发送", L"Sender stopped"));
                 a.lastSenderState = state;
             }
         }
@@ -1051,7 +1115,7 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 
     case WM_MOUSELEAVE:
         a.tracking = false;
-        a.hoverClose = a.hoverMin = a.hoverMaster = false;
+        a.hoverClose = a.hoverMin = a.hoverLanguage = a.hoverMaster = false;
         a.hoverClipboardSend = false;
         a.hoverReceiverClipboard = false;
         a.hoverReceiverScan = false;
@@ -1096,6 +1160,7 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 int run(HINSTANCE hInst, ahub::Player* player, const Options& opt) {
     g.player = player;
     g.opt    = opt;
+    g.english = loadEnglish();
 
     // DPI 感知由 app.manifest 里的 dpiAwareness=PerMonitorV2 声明，
     // 不再运行时调用 SetProcessDPIAware() —— 清单方式更规范，
@@ -1110,7 +1175,7 @@ int run(HINSTANCE hInst, ahub::Player* player, const Options& opt) {
     GdiplusStartupInput gpIn;
     ULONG_PTR gpTok = 0;
     if (GdiplusStartup(&gpTok, &gpIn, nullptr) != Ok) {
-        MessageBoxW(nullptr, L"GDI+ 初始化失败，无法创建界面", L"AudioHub", MB_ICONERROR);
+        MessageBoxW(nullptr, T(L"GDI+ 初始化失败，无法创建界面", L"GDI+ initialization failed"), L"AudioHub", MB_ICONERROR);
         return 1;
     }
 

@@ -17,6 +17,7 @@
 #include "wasapi_out.h"
 #include "control_server.h"
 #include "ui_window.h"
+#include "ui.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -309,9 +310,9 @@ static int runNetwork(uint16_t port, double seconds, const std::string& hostArg)
         char cname[MAX_COMPUTERNAME_LENGTH + 1] = {0};
         DWORD n = sizeof(cname);
         if (GetComputerNameA(cname, &n) && n > 0) {
-            player.setAnnounceName(std::string(cname, n) + "（电脑）");
+            player.setAnnounceName(std::string(cname, n) + " (PC)");
         } else {
-            player.setAnnounceName("电脑（Windows）");
+            player.setAnnounceName("Windows PC");
         }
     }
     std::string err;
@@ -431,9 +432,9 @@ static void applyAnnounceName(Player& p) {
     char cname[MAX_COMPUTERNAME_LENGTH + 1] = {0};
     DWORD n = sizeof(cname);
     if (GetComputerNameA(cname, &n) && n > 0) {
-        p.setAnnounceName(std::string(cname, n) + "（电脑）");
+        p.setAnnounceName(std::string(cname, n) + " (PC)");
     } else {
-        p.setAnnounceName("电脑（Windows）");
+        p.setAnnounceName("Windows PC");
     }
 }
 
@@ -447,8 +448,8 @@ static int runGui(HINSTANCE hInst, uint16_t port, const std::string& bindIp) {
 
     // 允许一开始没有源：靠后台线程周期性扫描动态接入
     if (!player->init(std::vector<std::string>(), port, err)) {
-        MessageBoxA(nullptr, ("播放端初始化失败:\n" + err).c_str(),
-                    "AudioHub", MB_ICONERROR);
+        MessageBoxW(nullptr, (std::wstring(L"AudioHub initialization failed:\n")
+                + ui::toWide(err)).c_str(), L"AudioHub", MB_ICONERROR);
         delete player;
         return 1;
     }

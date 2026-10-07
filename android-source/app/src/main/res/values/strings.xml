@@ -59,6 +59,12 @@
     <string name="settings_title">设置</string>
     <string name="settings_group_device">设备</string>
     <string name="settings_group_appearance">外观</string>
+    <string name="settings_language">语言</string>
+    <string name="language_system">跟随系统</string>
+    <string name="language_chinese">中文</string>
+    <string name="language_english">English</string>
+    <string name="unknown_device">未知设备</string>
+    <string name="cannot_open_link">没有可打开链接的应用</string>
     <string name="settings_dark_mode">深色模式</string>
     <string name="settings_dark_mode_hint">关闭后使用浅色界面。选择会保存在本机。</string>
     <string name="settings_group_audio">音频</string>

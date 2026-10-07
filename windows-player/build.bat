@@ -42,7 +42,7 @@ if errorlevel 1 (
     -o "%OUTDIR%\%EXENAME%" ^
     %SOURCES% "%OUTDIR%\resource.o" ^
     -lole32 -luuid -lavrt -lksuser -lwinmm -lws2_32 -liphlpapi ^
-    -lgdiplus -ldwmapi -lcomctl32 -luxtheme -lshell32 ^
+    -lgdiplus -ldwmapi -lcomctl32 -luxtheme -lshell32 -ladvapi32 ^
     -static-libgcc -static-libstdc++ -static
 
 rem -mwindows : GUI subsystem, so no console window appears.

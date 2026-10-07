@@ -79,7 +79,7 @@ public class PlayerService extends Service {
         if (nm != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel ch = new NotificationChannel(
                     CHANNEL_ID,
-                    getString(R.string.notif_channel_player),
+                    UiText.resource(this, R.string.notif_channel_player),
                     NotificationManager.IMPORTANCE_LOW);
             nm.createNotificationChannel(ch);
         }
@@ -90,8 +90,8 @@ public class PlayerService extends Service {
         PendingIntent pi = PendingIntent.getActivity(this, 1, open, piFlags);
 
         Notification n = new Notification.Builder(this, CHANNEL_ID)
-                .setContentTitle(getString(R.string.notif_player_title))
-                .setContentText(getString(R.string.notif_player_text))
+                .setContentTitle(UiText.resource(this, R.string.notif_player_title))
+                .setContentText(UiText.resource(this, R.string.notif_player_text))
                 .setSmallIcon(R.drawable.ic_audiohub_notification)
                 .setContentIntent(pi)
                 .setCategory(Notification.CATEGORY_SERVICE)

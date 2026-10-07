@@ -241,7 +241,8 @@ public class CaptureService extends Service {
         activeServer = server;
         if (server != null) {
             CaptureState.netInfo = String.format(Locale.US,
-                    "广播中 · %s\n本机地址 %s  端口 %d",
+                    UiText.tr(this, "广播中 · %s\n本机地址 %s  端口 %d",
+                            "Broadcasting · %s\nLocal address %s  port %d"),
                     Settings.deviceName(this), AudioServer.localAddresses(),
                     Protocol.DISCOVERY_PORT);
         }
@@ -404,7 +405,9 @@ public class CaptureService extends Service {
                 if (server != null && AppState.metersVisible) {
                     // 显示本机 IP：接收端需要它来做直连排查（扫描不到时可以手动指定）
                     CaptureState.netInfo = String.format(Locale.US,
-                            "广播中 · %s\n本机地址 %s  端口 %d\n已发送 %.1f MB   丢帧 %d   已批准 %d 个接收端",
+                            UiText.tr(this,
+                                    "广播中 · %s\n本机地址 %s  端口 %d\n已发送 %.1f MB   丢帧 %d   已批准 %d 个接收端",
+                                    "Broadcasting · %s\nLocal address %s  port %d\nSent %.1f MB   dropped %d   approved receivers %d"),
                             Settings.deviceName(this),
                             AudioServer.localAddresses(),
                             Protocol.DISCOVERY_PORT,
@@ -571,7 +574,7 @@ public class CaptureService extends Service {
         if (nm != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel ch = new NotificationChannel(
                     CHANNEL_ID,
-                    getString(R.string.notif_channel_name),
+                    UiText.resource(this, R.string.notif_channel_name),
                     NotificationManager.IMPORTANCE_LOW);
             nm.createNotificationChannel(ch);
         }
@@ -584,8 +587,8 @@ public class CaptureService extends Service {
         PendingIntent pi = PendingIntent.getActivity(this, 0, open, piFlags);
 
         Notification n = new Notification.Builder(this, CHANNEL_ID)
-                .setContentTitle(getString(R.string.notif_title))
-                .setContentText(getString(R.string.notif_text))
+                .setContentTitle(UiText.resource(this, R.string.notif_title))
+                .setContentText(UiText.resource(this, R.string.notif_text))
                 .setSmallIcon(R.drawable.ic_audiohub_notification)
                 .setContentIntent(pi)
                 .setCategory(Notification.CATEGORY_SERVICE)

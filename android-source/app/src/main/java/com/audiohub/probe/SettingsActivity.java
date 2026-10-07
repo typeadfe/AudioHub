@@ -13,6 +13,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.graphics.Insets;
+import androidx.core.os.LocaleListCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -125,6 +126,20 @@ public class SettingsActivity extends AppCompatActivity {
                     ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
         });
 
+        RadioGroup languageGroup = findViewById(R.id.radioLanguage);
+        String language = Settings.language(this);
+        languageGroup.check("en".equals(language) ? R.id.langEnglish
+                : "zh".equals(language) ? R.id.langChinese : R.id.langSystem);
+        languageGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            String selected = checkedId == R.id.langEnglish ? "en"
+                    : checkedId == R.id.langChinese ? "zh" : "system";
+            if (selected.equals(Settings.language(this))) return;
+            Settings.setLanguage(this, selected);
+            AppCompatDelegate.setApplicationLocales("system".equals(selected)
+                    ? LocaleListCompat.getEmptyLocaleList()
+                    : LocaleListCompat.forLanguageTags(selected));
+        });
+
         // ---- 运行日志 ----
         MaterialSwitch switchLog = findViewById(R.id.switchLog);
         switchLog.setChecked(Settings.logEnabled(this));
@@ -155,7 +170,7 @@ public class SettingsActivity extends AppCompatActivity {
         radioBandwidth = findViewById(R.id.radioBandwidth);
         for (int lv = 0; lv < Protocol.BW_COUNT; lv++) {
             MaterialRadioButton rb = findViewById(BW_IDS[lv]);
-            rb.setText(Protocol.bwLabel(lv) + "　·　" + Protocol.bwFormatText(lv)
+            rb.setText(UiText.bandwidth(this, lv) + "　·　" + UiText.format(this, Protocol.bwFormatText(lv))
                     + "　·　" + Protocol.bwKbps(lv) + " kbps");
         }
         radioBandwidth.check(BW_IDS[Settings.bandwidth(this)]);
@@ -201,7 +216,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
         StringBuilder sb = new StringBuilder();
         for (java.util.Map.Entry<String, String> e : byAddr.entrySet()) {
-            sb.append("• ").append(e.getValue().isEmpty() ? "(未知设备)" : e.getValue())
+            sb.append("• ").append(e.getValue().isEmpty() ? "(" + getString(R.string.unknown_device) + ")" : e.getValue())
               .append('\n').append("    ").append(e.getKey()).append('\n');
         }
         txt.setText(sb.toString().trim());
@@ -232,7 +247,7 @@ public class SettingsActivity extends AppCompatActivity {
         try {
             startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(u)));
         } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, "没有可打开链接的应用", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.cannot_open_link, Toast.LENGTH_SHORT).show();
         }
     }
 

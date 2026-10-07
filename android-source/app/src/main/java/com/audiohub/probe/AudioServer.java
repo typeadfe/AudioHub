@@ -236,7 +236,8 @@ final class AudioServer {
                                         ctx.getSystemService(Context.CLIPBOARD_SERVICE);
                                 if (cm != null) {
                                     cm.setPrimaryClip(ClipData.newPlainText("AudioHub", text));
-                                    ClipboardNotice.show(ctx, "已收到来自 " + name + " 的剪贴板内容");
+                                    ClipboardNotice.show(ctx, UiText.tr(ctx, "已收到来自 ", "Clipboard received from ")
+                                            + name + UiText.tr(ctx, " 的剪贴板内容", ""));
                                     CaptureState.log("[剪贴板] 已接收来自 " + name + " 的内容（"
                                             + text.length() + " 字符）");
                                 }

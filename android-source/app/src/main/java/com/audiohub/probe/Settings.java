@@ -25,6 +25,7 @@ final class Settings {
     private static final String K_APPROVAL  = "approval_required";
     private static final String K_APPROVED  = "approved_devices";
     private static final String K_DARK_MODE = "dark_mode";
+    private static final String K_LANGUAGE = "language";
 
     /** 品质档位 */
     static final int Q_LOW_LATENCY = 0;   // 低延迟：20ms 缓冲
@@ -38,6 +39,15 @@ final class Settings {
 
     private static SharedPreferences p(Context c) {
         return c.getApplicationContext().getSharedPreferences(PREF, Context.MODE_PRIVATE);
+    }
+
+    static String language(Context c) {
+        String value = p(c).getString(K_LANGUAGE, "system");
+        return "en".equals(value) || "zh".equals(value) ? value : "system";
+    }
+
+    static void setLanguage(Context c, String value) {
+        p(c).edit().putString(K_LANGUAGE, value).apply();
     }
 
     static boolean darkMode(Context c) {

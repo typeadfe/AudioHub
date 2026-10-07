@@ -254,11 +254,11 @@ public class MainActivity extends AppCompatActivity {
         AudioServer srv = CaptureService.activeServer();
         if (srv == null || !srv.isRunning()) {
             startClipboardNetwork();
-            Toast.makeText(this, "已启动剪贴板网络服务，请刷新接收端后再次发送", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, UiText.tr(this, "已启动剪贴板网络服务，请刷新接收端后再次发送", "Clipboard service started. Refresh the receiver and send again."), Toast.LENGTH_LONG).show();
             return;
         }
         int n = CaptureService.sendClipboard(text);
-        Toast.makeText(this, n > 0 ? "剪贴板已发送" : "暂无已连接的接收端", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, n > 0 ? UiText.tr(this, "剪贴板已发送", "Clipboard sent") : UiText.tr(this, "暂无已连接的接收端", "No connected receivers"), Toast.LENGTH_SHORT).show();
     }
 
     private void requestNeededPermissions() {
@@ -280,7 +280,7 @@ public class MainActivity extends AppCompatActivity {
             for (int i = 0; i < permissions.length; i++) {
                 if (Manifest.permission.RECORD_AUDIO.equals(permissions[i])
                         && grantResults[i] != PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(this, "没有录音权限，无法发送", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, UiText.tr(this, "没有录音权限，无法发送", "Microphone permission is required to send audio"), Toast.LENGTH_LONG).show();
                 }
             }
         }
@@ -288,14 +288,14 @@ public class MainActivity extends AppCompatActivity {
 
     private void onStartCaptureClicked() {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "请先授予录音权限", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, UiText.tr(this, "请先授予录音权限", "Grant microphone permission first"), Toast.LENGTH_LONG).show();
             requestNeededPermissions();
             return;
         }
         MediaProjectionManager mpm =
                 (MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
         if (mpm == null) {
-            Toast.makeText(this, "系统不支持 MediaProjection", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, UiText.tr(this, "系统不支持 MediaProjection", "Screen audio capture is unavailable"), Toast.LENGTH_LONG).show();
             return;
         }
         startActivityForResult(mpm.createScreenCaptureIntent(), REQ_PROJECTION);
@@ -306,7 +306,7 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode != REQ_PROJECTION) return;
         if (resultCode != RESULT_OK || data == null) {
-            Toast.makeText(this, "你拒绝了录屏授权，无法发送", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, UiText.tr(this, "你拒绝了录屏授权，无法发送", "Capture permission denied; cannot send audio"), Toast.LENGTH_LONG).show();
             CaptureState.log("[授权] 用户拒绝");
             return;
         }
@@ -370,11 +370,11 @@ public class MainActivity extends AppCompatActivity {
             row.approveBox.setVisibility(pending ? View.VISIBLE : View.GONE);
 
             if (pending) {
-                row.latency.setText("⚠️ 请求接收你的音频 —— 点【允许】后才会开始发送");
+                row.latency.setText(UiText.tr(this, "⚠️ 请求接收你的音频 —— 点【允许】后才会开始发送", "⚠️ Wants to receive your audio. Tap Allow to start."));
             } else if (c.latencyMs >= 0) {
-                row.latency.setText(String.format(Locale.US, "🟢 已连接 · 延迟约 %d ms", c.latencyMs));
+                row.latency.setText(String.format(Locale.US, UiText.tr(this, "🟢 已连接 · 延迟约 %d ms", "🟢 Connected · about %d ms latency"), c.latencyMs));
             } else {
-                row.latency.setText("🟢 已连接 · 延迟测量中…");
+                row.latency.setText(UiText.tr(this, "🟢 已连接 · 延迟测量中…", "🟢 Connected · measuring latency…"));
             }
 
             row.send.setEnabled(!pending);
@@ -390,7 +390,7 @@ public class MainActivity extends AppCompatActivity {
             row.addr.setText(a[0]);
             row.dotView.setBackgroundResource(R.drawable.dot_off);
             row.approveBox.setVisibility(View.GONE);
-            row.latency.setText("⚪ 在线，等待对方连接（连接由接收端发起）");
+            row.latency.setText(UiText.tr(this, "⚪ 在线，等待对方连接（连接由接收端发起）", "⚪ Online; waiting for receiver to connect"));
             row.send.setEnabled(false);   // 发送端无法主动发起连接
             row.syncing = true;
             row.send.setChecked(false);
@@ -516,7 +516,7 @@ public class MainActivity extends AppCompatActivity {
                 else if (attempts[0]++ < 30) handler.postDelayed(request[0], 100);
             };
             handler.post(request[0]);
-            Toast.makeText(this, "正在扫描附近设备，约 5 秒", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, UiText.tr(this, "正在扫描附近设备，约 5 秒", "Scanning nearby devices for about 5 seconds"), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -525,11 +525,11 @@ public class MainActivity extends AppCompatActivity {
         PlayerEngine engine = PlayerService.engine(this);
         if (!engine.isRunning()) {
             startPlayerAndRefresh(false);
-            Toast.makeText(this, "已启动接收服务，请连接设备后再次发送", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, UiText.tr(this, "已启动接收服务，请连接设备后再次发送", "Receiver started. Connect a device and send again."), Toast.LENGTH_LONG).show();
             return;
         }
         int n = engine.sendClipboard(text);
-        Toast.makeText(this, n > 0 ? "剪贴板已发送" : "暂无已连接的发送端", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, n > 0 ? UiText.tr(this, "剪贴板已发送", "Clipboard sent") : UiText.tr(this, "暂无已连接的发送端", "No connected senders"), Toast.LENGTH_SHORT).show();
     }
 
     private void refreshPlayerUi() {
@@ -540,7 +540,7 @@ public class MainActivity extends AppCompatActivity {
         btnPlayerStop.setEnabled(running);
 
         if (running) {
-            txtPlayerState.setText(String.format(Locale.US, "接收中 · %d 路已连接", e.connectedCount()));
+            txtPlayerState.setText(String.format(Locale.US, UiText.tr(this, "接收中 · %d 路已连接", "Receiving · %d connected"), e.connectedCount()));
         } else {
             txtPlayerState.setText(R.string.state_idle);
         }
@@ -622,15 +622,15 @@ public class MainActivity extends AppCompatActivity {
                 (s.enabled && s.isConnected()) ? R.drawable.dot_on : R.drawable.dot_off);
 
         String state;
-        if (!s.enabled) state = "未连接";
+        if (!s.enabled) state = UiText.tr(this, "未连接", "Disconnected");
         else if (s.isConnected()) state = !s.isRemoteStreamEnabled() || !s.isActive()
-                ? "已连接，等待发送" : getString(R.string.source_ready);
-        else state = s.status();
+                ? UiText.tr(this, "已连接，等待发送", "Connected; waiting for audio") : getString(R.string.source_ready);
+        else state = UiText.status(this, s.status());
 
         // 延迟：连上并预热后才有意义
         String lat = "";
         if (s.enabled && s.isConnected() && s.isWarmedUp()) {
-            lat = String.format(Locale.US, " · 延迟约 %d ms", s.latencyMs);
+            lat = String.format(Locale.US, UiText.tr(this, " · 延迟约 %d ms", " · about %d ms latency"), s.latencyMs);
         }
         c.connState.setText(state + lat + " · " + s.host);
 
@@ -646,8 +646,8 @@ public class MainActivity extends AppCompatActivity {
         }
 
         c.stats.setText(String.format(Locale.US,
-                "%s · 缓冲 %dms · 收到 %d · 丢失 %d · 欠载 %d · %.1f dBFS",
-                s.formatText(),
+                UiText.tr(this, "%s · 缓冲 %dms · 收到 %d · 丢失 %d · 欠载 %d · %.1f dBFS", "%s · buffer %d ms · received %d · lost %d · underruns %d · %.1f dBFS"),
+                UiText.format(this, s.formatText()),
                 s.pendingMs(),
                 s.statRecv(), s.statLost(), s.statUnderruns(), s.levelDb));
     }
@@ -672,13 +672,13 @@ public class MainActivity extends AppCompatActivity {
 
         String verdict;
         if (CaptureState.error != null) {
-            verdict = "❌ 出错了：" + CaptureState.error;
+            verdict = UiText.tr(this, "❌ 出错了：", "❌ Error: ") + UiText.status(this, CaptureState.error);
         } else if (running && CaptureState.sawSignal) {
-            verdict = "✅ 正在发送，已收到声音";
+            verdict = UiText.tr(this, "✅ 正在发送，已收到声音", "✅ Sending audio");
         } else if (running && CaptureState.bytesTotal > 0) {
-            verdict = "⚠️ 有数据但全是静音\n系统或目标应用禁止被录制";
+            verdict = UiText.tr(this, "⚠️ 有数据但全是静音\n系统或目标应用禁止被录制", "⚠️ Audio is silent\nThe system or source app may block capture");
         } else if (running) {
-            verdict = "⏳ 等待声音…";
+            verdict = UiText.tr(this, "⏳ 等待声音…", "⏳ Waiting for audio…");
         } else {
             verdict = getString(R.string.state_idle);
         }
@@ -687,11 +687,11 @@ public class MainActivity extends AppCompatActivity {
         long since = CaptureState.connectedSinceMs;
         long secs = since > 0 ? (SystemClock.elapsedRealtime() - since) / 1000 : 0;
         txtStats.setText(String.format(Locale.US,
-                "连接时长 %d 秒\nRMS %.1f dBFS", secs, CaptureState.rmsDb));
+                UiText.tr(this, "连接时长 %d 秒\nRMS %.1f dBFS", "Connected for %d s\nRMS %.1f dBFS"), secs, CaptureState.rmsDb));
 
         txtLog.setText(CaptureState.logEnabled
                 ? CaptureState.logText() : getString(R.string.log_disabled_hint));
-        txtNet.setText(CaptureState.netInfo);
+        txtNet.setText(UiText.status(this, CaptureState.netInfo));
 
         refreshReceiverList();
     }
