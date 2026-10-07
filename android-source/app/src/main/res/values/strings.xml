@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AudioHub</string>
+
+    <!-- 模式（原「采集端/播放端」，改为更符合开源软件习惯的叫法） -->
+    <string name="mode_source">发送</string>
+    <string name="mode_player">接收</string>
+    <string name="mode_source_sub">把本机声音分享给局域网内的接收端</string>
+    <string name="mode_player_sub">接收局域网内的音源，混音后从本机播放</string>
+
+    <!-- 通用状态 -->
+    <string name="state_idle">未开始</string>
+    <string name="state_not_started">未启动</string>
+    <string name="action_settings">设置</string>
+
+    <!-- 发送端 -->
+    <string name="source_hint">建议先把手机音量调到 0，再打开游戏 / 音乐；本机音量滑块可单独调整这一路的响度。</string>
+    <string name="local_volume">本机音量</string>
+    <string name="btn_reset_volume">重置</string>
+    <string name="local_volume_hint">100% 为原音量。此处调整在手机端生效，接收端收到什么就是什么。</string>
+    <string name="btn_start_capture">开始发送</string>
+    <string name="btn_stop">停止</string>
+    <string name="btn_send_clipboard">发送剪贴板</string>
+    <string name="clipboard_empty">剪贴板为空</string>
+    <string name="btn_play_recorded">回放最近一次录制</string>
+    <string name="net_section">广播状态</string>
+    <string name="receivers_section">接收端</string>
+    <string name="btn_allow">允许</string>
+    <string name="btn_deny">拒绝</string>
+    <string name="settings_security">安全</string>
+    <string name="settings_approval">连接审批</string>
+    <string name="settings_approval_hint">开启后，新设备接入不会立刻收到你的音频，需要你在「发送」页点【允许】。批准过的设备会自动放行，不再询问。\n\n关闭后任何设备连上即可接收音频（不安全，仅在完全可信的局域网里使用）。</string>
+    <string name="settings_approved_devices">已批准的设备</string>
+    <string name="settings_approved_none">还没有已批准的设备。</string>
+    <string name="settings_approved_clear">全部撤销</string>
+    <string name="no_receiver">还没有发现接收端。\n\n电脑端请运行 ahub-player.exe；手机端请在另一台设备上切到「接收」并点开始。\n\n注意：连接由接收端发起，所以电脑必须先运行起来，这里才能看到它。</string>
+    <string name="log_section">运行日志</string>
+
+    <!-- 接收端 -->
+    <string name="player_hint">已有连接会保持并自动重连。只有点击“扫描设备”才查找新发送端，约需 5 秒。</string>
+    <string name="btn_player_start">开始接收</string>
+    <string name="btn_player_stop">停止</string>
+    <string name="master_volume">主音量</string>
+    <string name="devices_section">可连接设备</string>
+    <string name="no_source_yet">尚未发现设备。请在另一台设备上打开 AudioHub，或点“扫描设备”。</string>
+    <string name="scanning">正在扫描…</string>
+    <string name="btn_refresh">扫描设备</string>
+
+    <!-- 每路源卡片 -->
+    <string name="source_disconnected">未连接</string>
+    <string name="source_connected">已连接</string>
+    <string name="source_warming">预热中</string>
+    <string name="source_ready">就绪</string>
+    <string name="btn_mute">静音</string>
+    <string name="btn_unmute">已静音</string>
+    <string name="connect">连接</string>
+
+    <!-- 设置 -->
+    <string name="settings_title">设置</string>
+    <string name="settings_group_device">设备</string>
+    <string name="settings_group_appearance">外观</string>
+    <string name="settings_dark_mode">深色模式</string>
+    <string name="settings_dark_mode_hint">关闭后使用浅色界面。选择会保存在本机。</string>
+    <string name="settings_group_audio">音频</string>
+    <string name="settings_group_about">关于</string>
+
+    <string name="settings_device_name">设备显示名称</string>
+    <string name="settings_device_name_hint">其他设备在列表里看到的就是这个名字。</string>
+    <string name="settings_device_name_default">留空则使用：%1$s</string>
+
+    <string name="settings_quality">音频质量与延迟</string>
+    <string name="quality_low">低延迟</string>
+    <string name="quality_balanced">均衡</string>
+    <string name="quality_stable">稳定优先</string>
+    <string name="quality_hint_low">由发送端同步到接收端，缓冲 %1$d ms。延迟最低，网络抖动时可能出现断续。</string>
+    <string name="quality_hint_balanced">由发送端同步到接收端，缓冲 %1$d ms。日常使用推荐，兼顾延迟与稳定。</string>
+    <string name="quality_hint_stable">由发送端同步到接收端，缓冲 %1$d ms。网络较差时更稳，但延迟明显增加。</string>
+    <string name="quality_note_lossless">在发送端选择后，会同步到每个接收端；WiFi 音频由发送端统一设置，缓冲越大越抗抖动，延迟也越高。</string>
+
+    <string name="settings_exclusive">独占音频输出</string>
+    <string name="settings_exclusive_hint">开启后，本应用播放时其他应用的声音会被暂停；关闭则与本机其他声音同时播放。默认关闭。</string>
+
+    <string name="settings_autoconnect">自动连接新设备</string>
+    <string name="settings_autoconnect_hint">发现新发送端时自动连接。关闭后可在设备列表里手动勾选。</string>
+
+    <string name="settings_bandwidth">发送带宽（WiFi）</string>
+    <string name="bandwidth_note">此档位由发送端决定，接收端自动跟随。\n\n只作用于 WiFi：通过降低采样率和声道数减少带宽；低档位会损失高频。\n\n运行中修改会立即通知已连接的接收端。</string>
+
+    <string name="settings_log">记录运行日志</string>
+    <string name="settings_log_hint">默认关闭。日志用于排查问题，长期开启会持续占用内存与电量；关闭后各页面的日志区域将不再更新。</string>
+    <string name="log_disabled_hint">运行日志已关闭。如需排查问题，请在「设置 → 记录运行日志」中打开。</string>
+
+    <string name="settings_source_code">源代码</string>
+    <string name="settings_source_unpublished">尚未发布</string>
+    <string name="settings_version">版本 %1$s</string>
+    <string name="settings_license">音频和剪贴板内容在已连接的局域网设备间传输。请只在可信网络中使用。</string>
+
+    <!-- 通知 -->
+    <string name="notif_channel_name">音频发送</string>
+    <string name="notif_title">AudioHub 正在发送本机声音</string>
+    <string name="notif_text">点此返回应用</string>
+    <string name="notif_channel_player">音频接收</string>
+    <string name="notif_player_title">AudioHub 正在接收并播放</string>
+    <string name="notif_player_text">点此返回应用查看各路状态</string>
+</resources>

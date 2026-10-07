@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  AudioHub 应用程序清单
+
+  这个文件的作用（对"无法验证开发者"和杀软误报都有帮助）：
+
+  1. requestedExecutionLevel = asInvoker
+     明确声明【不需要管理员权限】。没有清单的程序，Windows 会按旧规则
+     猜测权限需求，而这个"猜测"本身就是杀软启发式的一个扣分项。
+
+  2. supportedOS 列出 Win10 / Win11 的 GUID
+     让系统知道这是为现代 Windows 写的程序，而不是来路不明的老式二进制。
+
+  3. dpiAwareness = PerMonitorV2
+     在清单里声明 DPI 感知，比运行时调 SetProcessDPIAware() 更规范，
+     多显示器不同缩放时也正确。
+
+  4. longPathAware
+     允许超过 260 字符的路径，避免深层目录下出错。
+-->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity type="win32" name="AudioHub.Player"
+                    version="1.0.0.0" processorArchitecture="amd64"/>
+  <description>AudioHub - LAN audio mixer (player side)</description>
+
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+    <security>
+      <requestedPrivileges>
+        <requestedExecutionLevel level="asInvoker" uiAccess="false"/>
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows 10 / 11 -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
+      <!-- Windows 8.1 -->
+      <supportedOS Id="{1f676c76-80e1-4239-95bb-83d0f6d0da78}"/>
+      <!-- Windows 8 -->
+      <supportedOS Id="{4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38}"/>
+      <!-- Windows 7 -->
+      <supportedOS Id="{35138b9a-5d96-4fbd-8e2d-a2440225f93a}"/>
+    </application>
+  </compatibility>
+
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true</dpiAware>
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2,PerMonitor</dpiAwareness>
+      <longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
+    </windowsSettings>
+  </application>
+</assembly>

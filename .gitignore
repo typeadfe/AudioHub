@@ -1,0 +1,25 @@
+# Local Android/Windows toolchains and machine state
+/sdk/
+/jdk/
+/gradle/
+/home/
+/aapt2-test/
+/android-source/local.properties
+/android-source/.gradle/
+/android-source/.idea/
+/android-source/build/
+/android-source/app/build/
+/windows-player/build/
+
+# Binary releases are attached to GitHub Releases, not committed as source
+/dist/
+
+# Local diagnostics, downloads, and device captures
+/docs/
+/tools/*
+!/tools/build-android-debug.ps1
+/*.png
+/*.xml
+/*.err
+/*.out
+/assets/audiohub-icon-concept.*

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="AudioHub icon">
+  <path fill="#2563EB" d="M132 615a380 380 0 0 1 760 0H790a278 278 0 0 0-556 0Z"/>
+  <rect x="132" y="574" width="160" height="302" rx="74" fill="#2563EB"/>
+  <rect x="732" y="574" width="160" height="302" rx="74" fill="#2563EB"/>
+  <rect x="478" y="456" width="68" height="205" rx="34" fill="#22B8AC"/>
+  <rect x="370" y="652" width="154" height="66" rx="33" fill="#22B8AC" transform="rotate(-43 447 685)"/>
+  <rect x="500" y="652" width="154" height="66" rx="33" fill="#22B8AC" transform="rotate(43 577 685)"/>
+</svg>

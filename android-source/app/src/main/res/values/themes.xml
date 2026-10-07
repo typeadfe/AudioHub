@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Material Design 3 主题。
+         用 NoActionBar + 自己放 MaterialToolbar，这样才能完全控制顶部栏。
+         配色用 MD3 默认的，Android 12+ 会自动跟随壁纸动态取色。 -->
+    <style name="Theme.AudioHub" parent="Theme.Material3.DayNight.NoActionBar" />
+
+</resources>
