@@ -12,6 +12,7 @@
 
 #include <windowsx.h>
 #include <dwmapi.h>
+#include <shellapi.h>
 #include <algorithm>
 #include <cstring>
 #include <vector>
@@ -102,11 +103,103 @@ struct App {
     bool hoverClose  = false;
     bool hoverMin    = false;
     bool tracking    = false;
+    bool trayAdded   = false;
+    bool trayHintShown = false;
+    HICON trayIcon = nullptr;
+    bool ownsTrayIcon = false;
 
     int  exitCode = 0;
 };
 
 static App g;
+static UINT taskbarCreated = 0;
+constexpr UINT TRAY_MESSAGE = WM_APP + 1;
+constexpr UINT TRAY_MINIMIZE = WM_APP + 2;
+constexpr UINT TRAY_ID = 1;
+constexpr UINT TRAY_OPEN = 1001;
+constexpr UINT TRAY_EXIT = 1002;
+
+NOTIFYICONDATAW trayData(HWND hwnd) {
+    NOTIFYICONDATAW data = {};
+    data.cbSize = sizeof(data);
+    data.hWnd = hwnd;
+    data.uID = TRAY_ID;
+    return data;
+}
+
+bool addTrayIcon(App& a) {
+    if (a.trayAdded) return true;
+    NOTIFYICONDATAW data = trayData(a.hwnd);
+    data.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+    data.uCallbackMessage = TRAY_MESSAGE;
+    if (!a.trayIcon) {
+        a.trayIcon = (HICON)LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(101),
+                                       IMAGE_ICON, GetSystemMetrics(SM_CXSMICON),
+                                       GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR);
+        a.ownsTrayIcon = a.trayIcon != nullptr;
+        if (!a.trayIcon) a.trayIcon = LoadIconW(nullptr, IDI_APPLICATION);
+    }
+    data.hIcon = a.trayIcon;
+    lstrcpynW(data.szTip, L"AudioHub", ARRAYSIZE(data.szTip));
+    a.trayAdded = Shell_NotifyIconW(NIM_ADD, &data) != FALSE;
+    return a.trayAdded;
+}
+
+void removeTrayIcon(App& a) {
+    if (a.trayAdded) {
+        NOTIFYICONDATAW data = trayData(a.hwnd);
+        Shell_NotifyIconW(NIM_DELETE, &data);
+        a.trayAdded = false;
+    }
+    if (a.ownsTrayIcon) DestroyIcon(a.trayIcon);
+    a.trayIcon = nullptr;
+    a.ownsTrayIcon = false;
+}
+
+void trayNotice(App& a, const std::wstring& message) {
+    if (!a.trayAdded) return;
+    NOTIFYICONDATAW data = trayData(a.hwnd);
+    data.uFlags = NIF_INFO;
+    data.dwInfoFlags = NIIF_INFO;
+    lstrcpynW(data.szInfoTitle, L"AudioHub", ARRAYSIZE(data.szInfoTitle));
+    lstrcpynW(data.szInfo, message.c_str(), ARRAYSIZE(data.szInfo));
+    Shell_NotifyIconW(NIM_MODIFY, &data);
+}
+
+void minimizeToTray(App& a) {
+    ShowWindow(a.hwnd, SW_HIDE);
+    KillTimer(a.hwnd, 1);
+    SetTimer(a.hwnd, 1, 1000, nullptr);
+    if (!a.trayHintShown) {
+        trayNotice(a, L"已最小化到托盘，双击图标可打开窗口");
+        a.trayHintShown = true;
+    }
+}
+
+void restoreFromTray(App& a) {
+    ShowWindow(a.hwnd, SW_RESTORE);
+    KillTimer(a.hwnd, 1);
+    SetTimer(a.hwnd, 1, 250, nullptr);
+    SetForegroundWindow(a.hwnd);
+    InvalidateRect(a.hwnd, nullptr, FALSE);
+}
+
+void showTrayMenu(App& a) {
+    HMENU menu = CreatePopupMenu();
+    if (!menu) return;
+    AppendMenuW(menu, MF_STRING, TRAY_OPEN, L"打开 AudioHub");
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, MF_STRING, TRAY_EXIT, L"退出 AudioHub");
+    POINT pt;
+    GetCursorPos(&pt);
+    SetForegroundWindow(a.hwnd);
+    UINT command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON,
+                                  pt.x, pt.y, 0, a.hwnd, nullptr);
+    PostMessageW(a.hwnd, WM_NULL, 0, 0);
+    DestroyMenu(menu);
+    if (command == TRAY_OPEN) restoreFromTray(a);
+    else if (command == TRAY_EXIT) DestroyWindow(a.hwnd);
+}
 
 // ==================================================================
 // 布局
@@ -639,7 +732,8 @@ bool inRect(const RectF& r, int x, int y) {
 void showToast(App& a, const std::wstring& message) {
     a.actionNotice = message;
     a.noticeUntil = GetTickCount() + 2800;
-    InvalidateRect(a.hwnd, nullptr, FALSE);
+    if (IsWindowVisible(a.hwnd)) InvalidateRect(a.hwnd, nullptr, FALSE);
+    else trayNotice(a, message);
 }
 
 void updateHover(App& a, int x, int y, int W) {
@@ -713,7 +807,7 @@ void onLButtonDown(App& a, int x, int y) {
         return;
     }
     if (inRect(titleBtn(W, false), x, y)) {
-        ShowWindow(a.hwnd, SW_MINIMIZE);
+        SendMessageW(a.hwnd, WM_SYSCOMMAND, SC_MINIMIZE, 0);
         return;
     }
     if (inRect(modeRect(W, false), x, y) || inRect(modeRect(W, true), x, y)) {
@@ -861,8 +955,16 @@ LRESULT hitTest(App& a, int sx, int sy) {
 LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     App& a = g;
 
+    // Explorer recreates the notification area after a restart.
+    if (taskbarCreated && msg == taskbarCreated) {
+        a.trayAdded = false;
+        addTrayIcon(a);
+        return 0;
+    }
+
     switch (msg) {
     case WM_CREATE: {
+        a.hwnd = hwnd;
         // Win11 圆角 + 深色标题栏 + 深色边框
         BOOL dark = TRUE;
         DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
@@ -875,9 +977,27 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         return 0;
     }
 
+    case WM_SYSCOMMAND:
+        if ((wp & 0xFFF0) == SC_MINIMIZE && (a.trayAdded || addTrayIcon(a))) {
+            minimizeToTray(a);
+            return 0;
+        }
+        break;
+
     case WM_SIZE:
         KillTimer(hwnd, 1);
         SetTimer(hwnd, 1, wp == SIZE_MINIMIZED ? 1000 : 250, nullptr);
+        if (wp == SIZE_MINIMIZED && a.trayAdded)
+            PostMessageW(hwnd, TRAY_MINIMIZE, 0, 0);
+        return 0;
+
+    case TRAY_MINIMIZE:
+        if (IsIconic(hwnd) && a.trayAdded) minimizeToTray(a);
+        return 0;
+
+    case TRAY_MESSAGE:
+        if (lp == WM_LBUTTONDBLCLK) restoreFromTray(a);
+        else if (lp == WM_RBUTTONUP || lp == WM_CONTEXTMENU) showTrayMenu(a);
         return 0;
 
     case WM_TIMER:
@@ -907,7 +1027,7 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 a.lastSenderState = state;
             }
         }
-        InvalidateRect(hwnd, nullptr, FALSE);
+        if (IsWindowVisible(hwnd)) InvalidateRect(hwnd, nullptr, FALSE);
         return 0;
 
     case WM_ERASEBKGND:
@@ -963,6 +1083,7 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 
     case WM_DESTROY:
         KillTimer(hwnd, 1);
+        removeTrayIcon(a);
         PostQuitMessage(a.exitCode);
         return 0;
     }
@@ -992,6 +1113,8 @@ int run(HINSTANCE hInst, ahub::Player* player, const Options& opt) {
         MessageBoxW(nullptr, L"GDI+ 初始化失败，无法创建界面", L"AudioHub", MB_ICONERROR);
         return 1;
     }
+
+    taskbarCreated = RegisterWindowMessageW(L"TaskbarCreated");
 
     WNDCLASSEXW wc = { sizeof(wc) };
     wc.style         = CS_HREDRAW | CS_VREDRAW;
@@ -1025,6 +1148,7 @@ int run(HINSTANCE hInst, ahub::Player* player, const Options& opt) {
         return 1;
     }
     g.hwnd = hwnd;
+    addTrayIcon(g);
 
     ShowWindow(hwnd, SW_SHOW);
     UpdateWindow(hwnd);
