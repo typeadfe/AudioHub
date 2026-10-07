@@ -28,7 +28,7 @@ Android 需要 10 或更高版本。首次发送声音时，系统会请求录�
 
 ## 下载
 
-v1.0 文件：`AudioHub-v1.0-debug.apk`（Android）和 `AudioHub-Windows-v1.0.exe`（Windows）。当前 Android 文件使用开发签名，适合测试；正式发布需使用专用发布签名重新打包。Windows 文件尚未签名，系统可能提示发布者未知。
+[Releases](https://github.com/typeadfe/AudioHub/releases)v1.0 文件：`AudioHub-v1.0-debug.apk`（Android）和 `AudioHub-Windows-v1.0.exe`（Windows）。当前 Android 文件使用开发签名，适合测试；正式发布需使用专用发布签名重新打包。Windows 文件尚未签名，系统可能提示发布者未知。
 
 ## 项目结构
 
