@@ -7,6 +7,8 @@ plugins {
     id("com.android.application")
 }
 
+val releaseKeystorePath = System.getenv("AUDIOHUB_RELEASE_KEYSTORE")
+
 android {
     namespace = "com.audiohub.probe"
     compileSdk = 36
@@ -20,12 +22,26 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        if (!releaseKeystorePath.isNullOrBlank()) {
+            create("release") {
+                storeFile = file(releaseKeystorePath)
+                storePassword = System.getenv("AUDIOHUB_RELEASE_PASSWORD")
+                keyAlias = "audiohub"
+                keyPassword = System.getenv("AUDIOHUB_RELEASE_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             isMinifyEnabled = false
         }
         release {
             isMinifyEnabled = false
+            if (!releaseKeystorePath.isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

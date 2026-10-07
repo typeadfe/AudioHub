@@ -17,6 +17,9 @@ final class AppState {
     /** 是否有界面处于前台 */
     static volatile boolean foreground = false;
 
+    /** Only the resumed main screen needs live audio meters. */
+    static volatile boolean metersVisible = false;
+
     static synchronized void onActivityStart() {
         startedCount++;
         foreground = startedCount > 0;

@@ -18,6 +18,7 @@
 /docs/
 /tools/*
 !/tools/build-android-debug.ps1
+!/tools/build-android-release.ps1
 /*.png
 /*.xml
 /*.err

@@ -2,7 +2,7 @@ package com.audiohub.probe;
 
 /**
  * 采集状态共享区。
- * CaptureService 负责写入；MainActivity 用 Handler 每 100ms 轮询读取并刷新界面。
+ * CaptureService 负责写入；主界面可见时才轮询并刷新界面。
  * 用 volatile + synchronized 保证跨线程可见性，避免引入额外依赖。
  */
 final class CaptureState {
@@ -23,6 +23,9 @@ final class CaptureState {
 
     /** 当前 RMS 分贝值 */
     static volatile float rmsDb = -120f;
+
+    /** At least one approved receiver has been connected since this elapsed time. */
+    static volatile long connectedSinceMs = 0;
 
     /** 本次采集过程中的最大绝对值（0~32767） */
     static volatile int peakAbs = 0;
@@ -83,6 +86,7 @@ final class CaptureState {
         sawSignal = false;
         levelPercent = 0;
         rmsDb = -120f;
+        connectedSinceMs = 0;
         peakAbs = 0;
         bytesTotal = 0;
         bytesSignal = 0;

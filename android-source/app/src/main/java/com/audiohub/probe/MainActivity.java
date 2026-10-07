@@ -10,6 +10,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -99,6 +100,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        SystemBars.apply(this);
         setContentView(R.layout.activity_main);
 
         toolbar           = findViewById(R.id.toolbar);
@@ -682,11 +684,10 @@ public class MainActivity extends AppCompatActivity {
         }
         txtVerdict.setText(verdict);
 
-        long secs = CaptureState.bytesTotal / (48000L * 2 * 2);
+        long since = CaptureState.connectedSinceMs;
+        long secs = since > 0 ? (SystemClock.elapsedRealtime() - since) / 1000 : 0;
         txtStats.setText(String.format(Locale.US,
-                "时长 %d 秒 · RMS %.1f dBFS · 峰值 %d\n本机增益 %d%% · 数据 %.0f KB",
-                secs, CaptureState.rmsDb, CaptureState.peakAbs,
-                (int) (CaptureState.inputGain * 100), CaptureState.bytesTotal / 1024.0));
+                "连接时长 %d 秒\nRMS %.1f dBFS", secs, CaptureState.rmsDb));
 
         txtLog.setText(CaptureState.logEnabled
                 ? CaptureState.logText() : getString(R.string.log_disabled_hint));
@@ -710,6 +711,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        AppState.metersVisible = true;
         Settings.applyRuntime(this);   // 应用设置（日志开关、缓冲档位）
         handler.removeCallbacks(poller);
         handler.post(poller);
@@ -717,8 +719,9 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
-        super.onPause();
+        AppState.metersVisible = false;
         handler.removeCallbacks(poller);
+        super.onPause();
     }
 
     @Override

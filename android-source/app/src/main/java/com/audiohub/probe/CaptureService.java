@@ -15,6 +15,7 @@ import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.SystemClock;
 import android.util.Log;
 
 import java.io.File;
@@ -22,7 +23,7 @@ import java.util.Locale;
 
 /**
  * 前台服务：用 MediaProjection + AudioPlaybackCapture 采集系统音频，
- * 实时统计电平，并把 PCM 写成 WAV。
+ * 主界面可见时统计电平，并把 PCM 写成 WAV。
  *
  * 判定逻辑：采集不到目标应用声音时系统【不会报错】，只会读到全 0 的静音数据。
  * 所以本服务以「是否读到非静音样本」作为唯一判据，并把它暴露给界面。
@@ -289,6 +290,9 @@ public class CaptureService extends Service {
             // 采集（AudioRecord + MediaProjection）是发送端最耗电的部分，
             // 没人接收时继续采集纯属浪费。有接收端接入会立刻自动恢复。
             boolean noClients = (server == null || server.approvedCount() == 0);
+            if (noClients) CaptureState.connectedSinceMs = 0;
+            else if (CaptureState.connectedSinceMs == 0)
+                CaptureState.connectedSinceMs = SystemClock.elapsedRealtime();
             if (!AppState.foreground && noClients) {
                 if (idleSince == 0) idleSince = System.currentTimeMillis();
                 if (!paused && System.currentTimeMillis() - idleSince > 10000) {
@@ -361,43 +365,43 @@ public class CaptureService extends Service {
                 server.sendFrame(pcm48, n / 2);
             }
 
-            // 统计：按 16bit 小端解析
-            long sumSq = 0;
-            int peak = 0;
-            int samples = n / 2;
-            for (int i = 0; i < samples; i++) {
-                int lo = buf[i * 2] & 0xFF;
-                int hi = buf[i * 2 + 1];
-                int s = (hi << 8) | lo; // 有符号 16bit
-                if (s > 32767) s -= 65536;
-                int a = Math.abs(s);
-                if (a > peak) peak = a;
-                sumSq += (long) s * s;
-            }
-
-            double rms = samples > 0 ? Math.sqrt((double) sumSq / samples) : 0;
-            float db = rms > 0 ? (float) (20 * Math.log10(rms / 32768.0)) : -120f;
-            int pct = (int) Math.round(rms / 32768.0 * 100 * 4); // 放大 4 倍便于观察
-            if (pct > 100) pct = 100;
-
             CaptureState.bytesTotal += n;
-            CaptureState.rmsDb = db;
-            CaptureState.levelPercent = pct;
-            if (peak > CaptureState.peakAbs) CaptureState.peakAbs = peak;
+            // The service keeps transmitting in the background. Meter analysis is
+            // only useful while the main screen is visible.
+            if (AppState.metersVisible) {
+                long sumSq = 0;
+                int peak = 0;
+                int samples = n / 2;
+                for (int i = 0; i < samples; i++) {
+                    int lo = buf[i * 2] & 0xFF;
+                    int hi = buf[i * 2 + 1];
+                    int s = (hi << 8) | lo;
+                    if (s > 32767) s -= 65536;
+                    int a = Math.abs(s);
+                    if (a > peak) peak = a;
+                    sumSq += (long) s * s;
+                }
 
-            // 阈值：峰值超过 32（约 -60dBFS）才算"有信号"
-            if (peak > 32) {
-                CaptureState.bytesSignal += n;
-                CaptureState.sawSignal = true;
+                double rms = samples > 0 ? Math.sqrt((double) sumSq / samples) : 0;
+                CaptureState.rmsDb = rms > 0
+                        ? (float) (20 * Math.log10(rms / 32768.0)) : -120f;
+                int pct = (int) Math.round(rms / 32768.0 * 400);
+                CaptureState.levelPercent = Math.min(pct, 100);
+                if (peak > CaptureState.peakAbs) CaptureState.peakAbs = peak;
+                if (peak > 32) {
+                    CaptureState.bytesSignal += n;
+                    CaptureState.sawSignal = true;
+                }
             }
 
             long now = System.currentTimeMillis();
             if (now - lastLog > 2000) {
                 lastLog = now;
-                CaptureState.log(String.format(Locale.US,
+                if (AppState.metersVisible && CaptureState.logEnabled) CaptureState.log(String.format(Locale.US,
                         "[电平] RMS=%.1f dBFS  峰值=%d  %.1f 秒",
-                        db, peak, CaptureState.bytesTotal / (double) (SAMPLE_RATE * CHANNELS * BITS / 8)));
-                if (server != null) {
+                        CaptureState.rmsDb, CaptureState.peakAbs,
+                        CaptureState.bytesTotal / (double) (SAMPLE_RATE * CHANNELS * BITS / 8)));
+                if (server != null && AppState.metersVisible) {
                     // 显示本机 IP：接收端需要它来做直连排查（扫描不到时可以手动指定）
                     CaptureState.netInfo = String.format(Locale.US,
                             "广播中 · %s\n本机地址 %s  端口 %d\n已发送 %.1f MB   丢帧 %d   已批准 %d 个接收端",
@@ -495,6 +499,7 @@ public class CaptureService extends Service {
         if (stopping) return;
         stopping = true;
         CaptureState.running = false;
+        CaptureState.connectedSinceMs = 0;
         try {
             if (audioRecord != null) {
                 try {
@@ -540,6 +545,7 @@ public class CaptureService extends Service {
         CaptureState.error = msg;
         CaptureState.log("[错误] " + msg);
         CaptureState.running = false;
+        CaptureState.connectedSinceMs = 0;
         if (server != null) {
             server.stop();
             server = null;

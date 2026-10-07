@@ -507,17 +507,19 @@ final class PlayerSource {
             }
         }
 
-        long sumSq = 0;
-        for (int i = 0; i < need; i++) {
-            int v = fifo[fifoPos + i];
-            sumSq += (long) v * v;
+        if (AppState.metersVisible) {
+            long sumSq = 0;
+            for (int i = 0; i < need; i++) {
+                int v = fifo[fifoPos + i];
+                sumSq += (long) v * v;
+            }
+            double rms = Math.sqrt((double) sumSq / need);
+            levelDb = rms > 0 ? (float) (20.0 * Math.log10(rms / 32768.0)) : -120f;
+            int pct = (int) (rms / 32768.0 * 400.0);
+            if (pct > 100) pct = 100;
+            if (pct < 0) pct = 0;
+            levelPercent = pct;
         }
-        double rms = Math.sqrt((double) sumSq / need);
-        levelDb = rms > 0 ? (float) (20.0 * Math.log10(rms / 32768.0)) : -120f;
-        int pct = (int) (rms / 32768.0 * 100.0 * 4.0);
-        if (pct > 100) pct = 100;
-        if (pct < 0) pct = 0;
-        levelPercent = pct;
 
         // 估算延迟 = 抖动缓冲水位 + 网络额外延迟 + 输出缓冲
         int bufMs = jb.pendingMs()
